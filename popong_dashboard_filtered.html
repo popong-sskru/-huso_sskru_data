@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Popong Dashboard</title>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f5;
+      color: #111827;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    header img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      margin-right: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    select {
+      margin: 10px 0 20px 0;
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      font-size: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f3f4f6;
+    }
+    .Completed { background-color: #dcfce7; }
+    .InProgress { background-color: #fef9c3; }
+    .Overdue { background-color: #fee2e2; }
+    .NotStarted { background-color: #e5e7eb; }
+  </style>
+  <script>
+    google.charts.load('current', { packages: ['corechart'] });
+    google.charts.setOnLoadCallback(drawDashboard);
+
+    let rawData;
+
+    function drawDashboard() {
+      const query = new google.visualization.Query(
+        'https://docs.google.com/spreadsheets/d/1B16k6UqcQ5hVeRF2pBhDPk2xfwzw0ceiQES6y7R4lac/gviz/tq?sheet=Sheet1'
+      );
+      query.send(handleQueryResponse);
+    }
+
+    function handleQueryResponse(response) {
+      if (response.isError()) {
+        document.body.innerHTML = 'เกิดข้อผิดพลาด: ' + response.getMessage();
+        return;
+      }
+      rawData = response.getDataTable();
+      populateFilterOptions(rawData);
+      render(rawData);
+    }
+
+    function populateFilterOptions(data) {
+      const unique = new Set();
+      for (let i = 0; i < data.getNumberOfRows(); i++) {
+        unique.add(data.getValue(i, 0));
+        unique.add(data.getValue(i, 2));
+        unique.add(data.getValue(i, 4));
+      }
+      const select = document.getElementById("filter");
+      unique.forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function render(data) {
+      const filter = document.getElementById("filter").value;
+      const now = new Date();
+      let html = '<table><thead><tr><th>งาน</th><th>หัวข้อ</th><th>ผู้รับผิดชอบ</th><th>วันที่ครบกำหนด</th><th>สถานะ</th><th>เหลืออีก</th></tr></thead><tbody>';
+
+      for (let i = 0; i < data.getNumberOfRows(); i++) {
+        const title = data.getValue(i, 0);
+        const topic = data.getValue(i, 1);
+        const assignee = data.getValue(i, 2);
+        const due = new Date(data.getValue(i, 3));
+        const status = data.getValue(i, 4);
+        const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+        const cssClass = status.replace(/\s/g, '');
+
+        if (!filter || title === filter || assignee === filter || status === filter) {
+          html += '<tr class="' + cssClass + '"><td>' + title + '</td><td>' + topic + '</td><td>' + assignee + '</td><td>' + data.getValue(i,3) + '</td><td>' + status + '</td><td>' + (daysLeft >= 0 ? daysLeft + ' วัน' : 'เลยกำหนด') + '</td></tr>';
+        }
+      }
+
+      html += '</tbody></table>';
+      document.getElementById("task_table").innerHTML = html;
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <img src="PopongImageCircle.png" alt="Popong Logo" />
+    <h1>Popong Dashboard</h1>
+  </header>
+
+  <label for="filter">🔍 กรองข้อมูลทั้งหมด:</label>
+  <select id="filter" onchange="render(rawData)">
+    <option value="">-- แสดงทั้งหมด --</option>
+  </select>
+
+  <div id="task_table"></div>
+</body>
+</html>
