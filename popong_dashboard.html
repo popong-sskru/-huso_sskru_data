@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>แดชบอร์ดงาน (Popong)</title>
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+      body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+      h1 { color: #1f2937; }
+      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+      th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+      th { background: #e5e7eb; }
+      .Completed { background-color: #d1fae5; }
+      .InProgress { background-color: #fef3c7; }
+      .Overdue { background-color: #fecaca; }
+      .NotStarted { background-color: #e5e7eb; }
+    </style>
+    <script>
+      google.charts.load('current', { packages: ['corechart'] });
+      google.charts.setOnLoadCallback(drawDashboard);
+
+      function drawDashboard() {
+        const query = new google.visualization.Query(
+          'https://docs.google.com/spreadsheets/d/1B16k6UqcQ5hVeRF2pBhDPk2xfwzw0ceiQES6y7R4lac/gviz/tq?sheet=Sheet1'
+        );
+        query.send(handleQueryResponse);
+      }
+
+      function handleQueryResponse(response) {
+        if (response.isError()) {
+          document.body.innerHTML = 'เกิดข้อผิดพลาด: ' + response.getMessage();
+          return;
+        }
+
+        const data = response.getDataTable();
+        const tableDiv = document.getElementById('task_table');
+        const pieDiv = document.getElementById('pie_chart');
+
+        const headers = ['งานที่ได้รับมอบหมาย', 'หัวข้อ', 'ผู้รับผิดชอบ', 'วันที่ครบกำหนด', 'สถานะ', 'เหลืออีก'];
+        let html = '<table><thead><tr>';
+        headers.forEach(h => html += `<th>${h}</th>`);
+        html += '</tr></thead><tbody>';
+
+        const now = new Date();
+
+        for (let i = 0; i < data.getNumberOfRows(); i++) {
+          const title = data.getValue(i, 0);
+          const topic = data.getValue(i, 1);
+          const assignee = data.getValue(i, 2);
+          const dueDateStr = data.getValue(i, 3);
+          const status = data.getValue(i, 4);
+
+          const dueDate = new Date(dueDateStr);
+          const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+          const cssClass = status.replace(/\s/g, '');
+
+          html += `<tr class="${cssClass}">
+            <td>${title}</td>
+            <td>${topic}</td>
+            <td>${assignee}</td>
+            <td>${dueDateStr}</td>
+            <td>${status}</td>
+            <td>${daysLeft >= 0 ? \`\${daysLeft} วัน\` : 'เลยกำหนด'}</td>
+          </tr>`;
+        }
+
+        html += '</tbody></table>';
+        tableDiv.innerHTML = html;
+
+        const statusSummary = google.visualization.data.group(
+          data,
+          [4],
+          [{ column: 0, aggregation: google.visualization.data.count, type: 'number' }]
+        );
+
+        const pie = new google.visualization.PieChart(pieDiv);
+        pie.draw(statusSummary, {
+          title: 'สรุปสถานะของงาน',
+          pieHole: 0.4
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <h1>📊 แดชบอร์ดงาน</h1>
+    <div id="pie_chart" style="height: 400px;"></div>
+    <div id="task_table"></div>
+  </body>
+</html>
